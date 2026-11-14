@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Приватная Ролевая Студия</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        mono: {
+                            950: '#0a0b0d',
+                            900: '#111317',
+                            850: '#16191f',
+                            800: '#1e222a',
+                            700: '#2b313d',
+                            600: '#404857',
+                            500: '#5e687a',
+                            400: '#8591a5',
+                            300: '#b0b9c8',
+                            200: '#dce1eb',
+                            100: '#f4f6fa',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0b0d;
+            color: #f4f6fa;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2b313d;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #404857;
+        }
+        .fade-enter-active {
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        /* Touch target improvements */
+        button, input, textarea, select {
+            touch-action: manipulation;
+        }
+        /* Safe top padding for iPhone / mobile notches */
+        .safe-top-spacer {
+            padding-top: calc(28px + env(safe-area-inset-top, 0px));
+        }
+        /* Prevent iOS Safari auto-zoom on focus (requires >= 16px) */
+        input, textarea, select {
+            font-size: 16px !important;
+        }
+    </style>
+</head>
+<body class="h-[100dvh] w-screen overflow-hidden flex flex-col justify-between select-none text-base bg-mono-950">
+
+    <!-- 1. LOCK SCREEN MODAL (PASSWORD: Елена) -->
+    <div id="lockScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-mono-950 p-4 safe-top-spacer transition-all duration-300">
+        <div class="max-w-md w-full bg-mono-900 border border-mono-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
+            <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-mono-850 border border-mono-700 text-mono-200 text-3xl shadow-inner">
+                <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-mono-100">Приватный вход</h1>
+                <p class="text-sm text-mono-400 mt-2">Вход доступен только владельцу ролевой студии</p>
+            </div>
+            
+            <form id="loginForm" class="space-y-4" onsubmit="handleLogin(event)">
+                <div class="relative">
+                    <input type="password" id="passwordInput" placeholder="Введите пароль..." 
+                           class="w-full px-4 py-4 bg-mono-850 border border-mono-700 rounded-2xl focus:outline-none focus:border-mono-400 text-mono-100 text-center tracking-widest text-base transition">
+                    <p id="passwordError" class="text-sm text-red-400 mt-2 hidden">Неверный пароль. Попробуйте еще раз.</p>
+                </div>
+                <button type="submit" 
+                        class="w-full py-4 px-4 bg-mono-700 hover:bg-mono-600 active:bg-mono-800 text-mono-100 font-semibold text-base rounded-2xl transition duration-150 flex items-center justify-center gap-2 shadow-md">
+                    <span>Войти в ролевую</span>
+                    <i class="fa-solid fa-arrow-right text-sm"></i>
+                </button>
+            </form>
+            <div class="text-xs text-mono-500 pt-2 border-t border-mono-800/60">
+                <i class="fa-solid fa-shield-halved mr-1"></i> Все данные хранятся локально
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APPLICATION CONTAINER (Hidden until unlock) -->
+    <div id="appContainer" class="hidden h-full w-full flex flex-col md:flex-row overflow-hidden relative">
+        
+        <!-- SIDEBAR: ROOMS & SETTINGS -->
+        <aside id="sidebar" class="w-full md:w-80 bg-mono-900 border-r border-mono-800 flex flex-col flex-shrink-0 transition-all duration-300 z-30 absolute md:relative inset-0 -translate-x-full md:translate-x-0">
+            <!-- Top Safe Area Black Bar for iPhone -->
+            <div class="bg-mono-950 safe-top-spacer w-full flex-shrink-0"></div>
+            <!-- Sidebar Header -->
+            <div class="p-4 border-b border-mono-800 flex items-center justify-between">
+                <div class="flex items-center gap-2.5 font-bold text-mono-100 text-base">
+                    <i class="fa-solid fa-masks-theater text-mono-400 text-lg"></i>
+                    <span>Мои «Ролки»</span>
+                </div>
+                <button onclick="toggleSidebar()" class="md:hidden p-3 text-mono-400 hover:text-mono-100 active:scale-95">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <!-- New Room Button -->
+            <div class="p-3">
+                <button onclick="createNewRoom()" 
+                        class="w-full py-3.5 px-4 bg-mono-800 hover:bg-mono-700 border border-mono-700/60 rounded-2xl text-mono-100 text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm active:scale-98">
+                    <i class="fa-solid fa-plus text-sm"></i>
+                    <span>Создать новую ролку</span>
+                </button>
+            </div>
+
+            <!-- Rooms List -->
+            <div id="roomsList" class="flex-1 overflow-y-auto px-3 py-1 space-y-1.5">
+                <!-- Dynamic room items -->
+            </div>
+
+            <!-- Global Settings Footer -->
+            <div class="p-3 pb-6 sm:pb-3 border-t border-mono-800 bg-mono-950/40 space-y-1.5">
+                <button onclick="requestDeletedLibraryAccess()" class="w-full py-3 px-3.5 text-xs sm:text-sm text-mono-300 hover:text-mono-100 hover:bg-mono-850 rounded-xl flex items-center justify-between transition">
+                    <span class="flex items-center gap-2.5">
+                        <i class="fa-solid fa-vault text-mono-400"></i>
+                        <span>Библиотека удаленных чатов</span>
+                    </span>
+                    <span id="deletedCountBadge" class="px-2 py-0.5 text-xs font-mono rounded-lg bg-mono-800 text-mono-300 border border-mono-700/60">0</span>
+                </button>
+                <button onclick="openModal('apiSettingsModal')" class="w-full py-3 px-3.5 text-xs sm:text-sm text-mono-300 hover:text-mono-100 hover:bg-mono-850 rounded-xl flex items-center justify-between transition">
+                    <span class="flex items-center gap-2.5"><i class="fa-solid fa-key text-mono-400"></i> Gemini API Ключ</span>
+                    <span id="apiStatusBadge" class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                </button>
+                <button onclick="lockApp()" class="w-full py-3 px-3.5 text-xs sm:text-sm text-mono-400 hover:text-red-400 hover:bg-mono-850 rounded-xl flex items-center gap-2.5 transition">
+                    <i class="fa-solid fa-lock"></i> Выйти / Заблокировать
+                </button>
+            </div>
+        </aside>
+
+        <!-- CHAT AREA -->
+        <main class="flex-1 flex flex-col h-full bg-mono-950 relative min-w-0">
+            <!-- Top Safe Area Black Bar for iPhone -->
+            <div class="bg-mono-950 safe-top-spacer w-full flex-shrink-0"></div>
+            <!-- Top Navbar -->
+            <header class="h-16 border-b border-mono-800 bg-mono-900/90 backdrop-blur px-3 sm:px-4 flex items-center justify-between z-10 flex-shrink-0">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <button onclick="toggleSidebar()" class="md:hidden text-mono-400 hover:text-mono-100 p-2.5 active:bg-mono-800 rounded-xl">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                    <div class="min-w-0">
+                        <h2 id="currentRoomTitle" class="font-bold text-mono-100 text-base sm:text-lg truncate">Выберите ролку</h2>
+                        <p id="currentRoomSubtitle" class="text-xs text-mono-400 truncate">Ролевой чат с AI</p>
+                    </div>
+                </div>
+
+                <!-- Room Toolbar Actions -->
+                <div class="flex items-center gap-1 sm:gap-1.5">
+                    <button onclick="openModal('contextModal')" title="Настройки сюжета и Памяти" 
+                            class="p-2.5 text-mono-300 hover:text-mono-100 hover:bg-mono-800 rounded-xl transition text-xs sm:text-sm flex items-center gap-1.5 border border-mono-800 active:scale-95">
+                        <i class="fa-solid fa-brain text-mono-400 text-base"></i>
+                        <span class="hidden sm:inline font-medium">Сюжет & Память</span>
+                    </button>
+                    <button onclick="openModal('editRoomModal')" title="Переименовать" 
+                            class="p-2.5 text-mono-400 hover:text-mono-100 hover:bg-mono-800 rounded-xl transition text-sm active:scale-95">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    <button onclick="archiveRoom(activeRoomId)" title="В архив / Удалить ролку" 
+                            class="p-2.5 text-mono-400 hover:text-amber-400 hover:bg-mono-800 rounded-xl transition text-sm active:scale-95">
+                        <i class="fa-solid fa-box-archive"></i>
+                    </button>
+                    <button onclick="openModal('clearHistoryModal')" title="Очистить диалог" 
+                            class="p-2.5 text-mono-400 hover:text-red-400 hover:bg-mono-800 rounded-xl transition text-sm active:scale-95">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Chat Messages Container -->
+            <div id="messagesContainer" class="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4">
+                <!-- Messages will be rendered here dynamically -->
+            </div>
+
+            <!-- Chat Input Bar -->
+            <div class="p-2.5 pb-5 sm:p-4 bg-mono-950 border-t border-mono-800 flex-shrink-0">
+                <div class="max-w-4xl mx-auto relative bg-mono-900 border border-mono-800 rounded-2xl shadow-lg focus-within:border-mono-700 transition flex items-end">
+                    <textarea id="userInput" rows="1" placeholder="Напишите следующий ход сюжета..." 
+                              class="w-full py-3.5 pl-4 pr-12 bg-transparent text-mono-100 placeholder:text-mono-500 focus:outline-none resize-none max-h-40 text-base leading-snug select-text"
+                              oninput="autoResizeTextarea(this)"
+                              onkeydown="handleKeyDown(event)"></textarea>
+                    
+                    <button id="sendBtn" onclick="sendMessage()" 
+                            class="absolute right-2 bottom-2 p-3 w-10 h-10 flex items-center justify-center bg-mono-700 hover:bg-mono-600 active:bg-mono-800 text-mono-100 rounded-xl transition shadow active:scale-95">
+                        <i class="fa-solid fa-paper-plane text-sm"></i>
+                    </button>
+                </div>
+                <div class="text-[11px] text-center text-mono-500 mt-2 hidden sm:block">
+                    Нажмите <kbd class="px-1.5 py-0.5 bg-mono-900 rounded border border-mono-800">Enter</kbd> для отправки хода, <kbd class="px-1.5 py-0.5 bg-mono-900 rounded border border-mono-800">Shift + Enter</kbd> для новой строки.
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: API KEY SETTINGS -->
+    <div id="apiSettingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center p-3 sm:p-4">
+        <div class="bg-mono-900 border border-mono-800 rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-mono-800 pb-3">
+                <h3 class="font-bold text-mono-100 flex items-center gap-2 text-base sm:text-lg">
+                    <i class="fa-solid fa-key text-mono-400"></i> Настройки Gemini API
+                </h3>
+                <button onclick="closeModal('apiSettingsModal')" class="text-mono-400 hover:text-mono-100 p-2">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="bg-mono-850 border border-mono-700/60 p-3.5 rounded-2xl text-xs sm:text-sm text-mono-300 leading-relaxed space-y-2">
+                <p class="font-semibold text-mono-100"><i class="fa-solid fa-circle-info mr-1 text-mono-400"></i> Где получить API ключ:</p>
+                <ol class="list-decimal list-inside space-y-1 text-mono-300">
+                    <li>Перейдите на официальный сайт: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="text-mono-100 underline hover:text-white font-mono break-all">aistudio.google.com/app/apikey</a></li>
+                    <li>Авторизуйтесь с помощью аккаунта Google.</li>
+                    <li>Нажмите кнопку <strong>«Create API key»</strong> и скопируйте созданный ключ.</li>
+                </ol>
+            </div>
+
+            <div>
+                <label class="block text-xs sm:text-sm text-mono-300 mb-1.5 font-medium">Gemini API Key</label>
+                <input type="password" id="apiKeyInput" placeholder="Вставьте сюда ваш ключ AIzaSy..." 
+                       class="w-full px-4 py-3 bg-mono-850 border border-mono-700 rounded-xl focus:outline-none focus:border-mono-400 text-mono-100 text-base font-mono select-text">
+            </div>
+
+            <div>
+                <label class="block text-xs sm:text-sm text-mono-300 mb-1.5 font-medium">Выбор модели</label>
+                <select id="apiModelSelect" class="w-full px-4 py-3 bg-mono-850 border border-mono-700 rounded-xl focus:outline-none focus:border-mono-400 text-mono-100 text-base">
+                    <option value="gemini-2.5-flash">gemini-2.5-flash (Рекомендуемая & Быстрая)</option>
+                    <option value="gemini-3-flash-preview">gemini-3-flash-preview (Креативная)</option>
+                </select>
+            </div>
+
+            <!-- Safety Settings Toggle -->
+            <div class="pt-2 border-t border-mono-800">
+                <label class="flex items-center justify-between cursor-pointer p-2 rounded-xl hover:bg-mono-850 transition">
+                    <div>
+                        <div class="text-xs sm:text-sm font-semibold text-mono-100">Снять фильтры безопасности (BLOCK_NONE)</div>
+                        <div class="text-[11px] sm:text-xs text-mono-400">Отключает все 5 настраиваемых фильтров контента Gemini API (BLOCK_NONE).</div>
+                    </div>
+                    <input type="checkbox" id="disableSafetyToggle" class="w-5 h-5 accent-mono-400 rounded cursor-pointer">
+                </label>
+            </div>
+
+            <div class="flex justify-end gap-2.5 pt-3 border-t border-mono-800">
+                <button onclick="closeModal('apiSettingsModal')" class="px-5 py-3 bg-mono-850 text-mono-300 hover:text-mono-100 rounded-xl text-sm font-medium">Отмена</button>
+                <button onclick="saveApiKey()" class="px-5 py-3 bg-mono-700 hover:bg-mono-600 text-mono-100 rounded-xl text-sm font-medium">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CONTEXT & LONG-TERM MEMORY SETTINGS -->
+    <div id="contextModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center p-3 sm:p-4">
+        <div class="bg-mono-900 border border-mono-800 rounded-3xl w-full max-w-2xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between border-b border-mono-800 pb-3">
+                <h3 class="font-bold text-mono-100 flex items-center gap-2 text-base sm:text-lg">
+                    <i class="fa-solid fa-brain text-mono-400"></i> Сюжет и Долгая Память AI
+                </h3>
+                <button onclick="closeModal('contextModal')" class="text-mono-400 hover:text-mono-100 p-2">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto space-y-4 pr-1">
+                <div>
+                    <label class="block text-xs sm:text-sm font-medium text-mono-300 mb-1.5">
+                        Системный промпт (Окружение, роли персонажей, стилистика)
+                    </label>
+                    <textarea id="roomSystemPrompt" rows="3" 
+                              placeholder="Пример: Мы играем в киберпанк-детективе. Ты играешь за ИИ-ассистента детективной нуар-клиники..." 
+                              class="w-full p-3.5 bg-mono-850 border border-mono-700 rounded-xl focus:outline-none focus:border-mono-400 text-mono-100 text-base resize-none select-text"></textarea>
+                </div>
+
+                <!-- Response Length Presets -->
+                <div>
+                    <label class="block text-xs sm:text-sm font-medium text-mono-300 mb-1.5">
+                        Длина сообщений бота (чтобы не писал сочинения)
+                    </label>
+                    <div class="grid grid-cols-3 gap-2" id="lengthSelectorGroup">
+                        <button type="button" onclick="selectLengthPreset('short')" id="lenBtn_short"
+                                class="py-2.5 px-3 rounded-xl border border-mono-700 bg-mono-850 text-mono-300 text-xs sm:text-sm font-medium transition text-center">
+                            Короткие
+                        </button>
+                        <button type="button" onclick="selectLengthPreset('medium')" id="lenBtn_medium"
+                                class="py-2.5 px-3 rounded-xl border border-mono-700 bg-mono-850 text-mono-300 text-xs sm:text-sm font-medium transition text-center">
+                            Средние
+                        </button>
+                        <button type="button" onclick="selectLengthPreset('long')" id="lenBtn_long"
+                                class="py-2.5 px-3 rounded-xl border border-mono-700 bg-mono-850 text-mono-300 text-xs sm:text-sm font-medium transition text-center">
+                            Длинные
+                        </button>
+                    </div>
+                    <input type="hidden" id="roomResponseLength" value="short">
+                </div>
+
+                <!-- Persistent Character Mood -->
+                <div>
+                    <label class="block text-xs sm:text-sm font-medium text-mono-300 mb-1.5 flex items-center justify-between">
+                        <span>Текущее настроение / Состояние бота</span>
+                        <span class="text-[11px] text-emerald-400">Строгое правило</span>
+                    </label>
+                    <input type="text" id="roomCharacterMood" 
+                           placeholder="Например: Хорошее настроение, дружелюбный, спокойный..." 
+                           class="w-full px-3.5 py-2.5 bg-mono-850 border border-mono-700 rounded-xl focus:outline-none focus:border-mono-400 text-mono-100 text-base select-text">
+                    <p class="text-[11px] text-mono-400 mt-1">Бот будет строго удерживать это настроение в каждом ответе, пока вы не измените его здесь.</p>
+                </div>
+
+                <!-- Banned Words / Anti-Repetition -->
+                <div>
+                    <label class="block text-xs sm:text-sm font-medium text-mono-300 mb-1.5">
+                        Запрещенные слова и клише (через запятую)
+                    </label>
+                    <input type="text" id="roomBannedWords" 
+                           placeholder="дохляк, ухмыльнулся, закатил глаза..." 
+                           class="w-full px-3.5 py-2.5 bg-mono-850 border border-mono-700 rounded-xl focus:outline-none focus:border-mono-400 text-mono-100 text-base select-text">
+                </div>
+
+                <div>
+                    <label class="block text-xs sm:text-sm font-medium text-mono-300 mb-1.5 flex items-center justify-between">
+                        <span>Закрепленная Долгая Память (Факты мира, статус персонажа)</span>
+                        <i class="fa-solid fa-bookmark text-mono-500"></i>
+                    </label>
+                    <textarea id="roomMemoryFacts" rows="3" 
+                              placeholder="- У главного героя травма левой руки&#10;- В инвентаре: револьвер и ключ от сейфа №402" 
+                              class="w-full p-3.5 bg-mono-850 border border-mono-700 rounded-xl focus:outline-none focus:border-mono-400 text-mono-100 text-base font-mono resize-none select-text"></textarea>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <label class="text-xs sm:text-sm font-medium text-mono-300">Креативность (Температура)</label>
+                        <span id="tempValue" class="text-xs sm:text-sm font-mono text-mono-400">0.9</span>
+                    </div>
+                    <input type="range" id="roomTemperature" min="0.2" max="1.5" step="0.1" value="0.9" 
+                           oninput="document.getElementById('tempValue').innerText = this.value"
+                           class="w-full accent-mono-400 bg-mono-800 rounded-lg cursor-pointer h-2">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2.5 pt-3 border-t border-mono-800">
+                <button onclick="closeModal('contextModal')" class="px-5 py-3 bg-mono-850 text-mono-300 hover:text-mono-100 rounded-xl text-sm font-medium">Отмена</button>
+                <button onclick="saveRoomContext()" class="px-5 py-3 bg-mono-700 hover:bg-mono-600 text-mono-100 rounded-xl text-sm font-medium">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: EDIT ROOM NAME -->
+    <div id="editRoomModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-mono-900 border border-mono-800 rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
+            <h3 class="font-bold text-mono-100 text-base">Переименовать ролку</h3>
+            <input type="text" id="editRoomNameInput" class="w-full px-4 py-3 bg-mono-850 border border-mono-700 rounded-xl text-mono-100 text-base focus:outline-none focus:border-mono-400 select-text">
+            <div class="flex justify-end gap-2.5">
+                <button onclick="closeModal('editRoomModal')" class="px-4 py-2.5 bg-mono-850 text-mono-300 rounded-xl text-sm font-medium">Отмена</button>
+                <button onclick="saveRoomName()" class="px-4 py-2.5 bg-mono-700 text-mono-100 rounded-xl text-sm font-medium">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFIRM CLEAR CHAT HISTORY -->
+    <div id="clearHistoryModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-mono-900 border border-mono-800 rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl text-center">
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-2xl mx-auto">
+                <i class="fa-solid fa-trash-can"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-mono-100 text-lg">Очистить переписку?</h3>
+                <p class="text-sm text-mono-400 mt-1.5">Текущая переписка будет очищена, а её резервная копия автоматически сохранится в <strong>Библиотеку удаленных чатов</strong>.</p>
+            </div>
+            <div class="flex justify-center gap-3 pt-2">
+                <button onclick="closeModal('clearHistoryModal')" class="flex-1 py-3 px-4 bg-mono-850 hover:bg-mono-800 text-mono-300 rounded-xl text-sm font-medium transition">Отмена</button>
+                <button onclick="confirmClearChatHistory()" class="flex-1 py-3 px-4 bg-red-600/80 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition">Очистить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: PASSWORD GATE FOR DELETED CHATS LIBRARY -->
+    <div id="libraryPasswordModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-mono-900 border border-mono-800 rounded-3xl w-full max-w-sm p-6 space-y-5 shadow-2xl text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-mono-850 border border-mono-700 text-mono-200 text-2xl mx-auto">
+                <i class="fa-solid fa-vault"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-mono-100 text-lg">Защищенный архив</h3>
+                <p class="text-xs sm:text-sm text-mono-400 mt-1">Введите повторный пароль для доступа к Библиотеке удаленных чатов</p>
+            </div>
+            <form onsubmit="verifyLibraryPassword(event)" class="space-y-3.5">
+                <div>
+                    <input type="password" id="libraryPasswordInput" placeholder="Повторный пароль..." 
+                           class="w-full px-4 py-3.5 bg-mono-850 border border-mono-700 rounded-2xl focus:outline-none focus:border-mono-400 text-mono-100 text-center tracking-widest text-base">
+                    <p id="libraryPasswordError" class="text-xs text-red-400 mt-2 hidden">Неверный пароль доступа к архиву.</p>
+                </div>
+                <div class="flex gap-2.5 pt-1">
+                    <button type="button" onclick="closeModal('libraryPasswordModal')" class="flex-1 py-3 px-4 bg-mono-850 hover:bg-mono-800 text-mono-300 rounded-xl text-sm font-medium transition">Отмена</button>
+                    <button type="submit" class="flex-1 py-3 px-4 bg-mono-700 hover:bg-mono-600 text-mono-100 rounded-xl text-sm font-semibold transition">Открыть</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: DELETED CHATS LIBRARY -->
+    <div id="deletedLibraryModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden items-center justify-center p-3 sm:p-4">
+        <div class="bg-mono-900 border border-mono-800 rounded-3xl w-full max-w-2xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[88vh] flex flex-col">
+            <div class="flex items-center justify-between border-b border-mono-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-vault text-mono-300 text-lg"></i>
+                    <div>
+                        <h3 class="font-bold text-mono-100 text-base sm:text-lg">Библиотека удаленных чатов</h3>
+                        <p class="text-xs text-mono-400">Все архивированные ролки и резервные копии можно восстановить</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('deletedLibraryModal')" class="text-mono-400 hover:text-mono-100 p-2">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div id="deletedRoomsList" class="flex-1 overflow-y-auto space-y-2.5 pr-1">
+                <!-- Dynamic deleted items -->
+            </div>
+
+            <div class="flex justify-between items-center pt-3 border-t border-mono-800">
+                <span class="text-xs text-mono-500"><i class="fa-solid fa-shield-halved mr-1"></i>Хранится локально в защищенном разделе</span>
+                <button onclick="closeModal('deletedLibraryModal')" class="px-5 py-2.5 bg-mono-800 hover:bg-mono-700 text-mono-100 rounded-xl text-sm font-medium transition">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN LOGIC JAVASCRIPT -->
+    <script>
+        const CORRECT_PASSWORD = "Елена";
+
+        let rooms = [];
+        let deletedRooms = [];
+        let activeRoomId = null;
+        let isGenerating = false;
+        let apiKey = localStorage.getItem('gemini_api_key') || "";
+        let selectedModel = localStorage.getItem('gemini_api_model') || "gemini-2.5-flash";
+        let disableSafety = localStorage.getItem('gemini_disable_safety') === 'true';
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const unlocked = sessionStorage.getItem('app_unlocked');
+            if (unlocked === 'true') {
+                showApp();
+            }
+            updateApiStatusBadge();
+            loadRoomsData();
+        });
+
+        // -------------------------------------------------------------
+        // AUTH SYSTEM
+        // -------------------------------------------------------------
+        function handleLogin(e) {
+            e.preventDefault();
+            const input = document.getElementById('passwordInput').value;
+            const errorEl = document.getElementById('passwordError');
+
+            if (input === CORRECT_PASSWORD) {
+                sessionStorage.setItem('app_unlocked', 'true');
+                errorEl.classList.add('hidden');
+                showApp();
+            } else {
+                errorEl.classList.remove('hidden');
+            }
+        }
+
+        function showApp() {
+            document.getElementById('lockScreen').classList.add('hidden');
+            document.getElementById('appContainer').classList.remove('hidden');
+        }
+
+        function lockApp() {
+            sessionStorage.removeItem('app_unlocked');
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('appContainer').classList.add('hidden');
+            document.getElementById('lockScreen').classList.remove('hidden');
+        }
+
+        // -------------------------------------------------------------
+        // STORAGE, ROOMS & DELETED LIBRARY MANAGEMENT
+        // -------------------------------------------------------------
+        function normalizeRoomObject(r) {
+            return {
+                id: r.id || ('room_' + Date.now() + Math.random()),
+                name: r.name || 'Ролевая комната',
+                systemPrompt: r.systemPrompt || '',
+                memoryFacts: r.memoryFacts || '',
+                responseLength: r.responseLength || 'short',
+                characterMood: r.characterMood || '',
+                bannedWords: r.bannedWords !== undefined ? r.bannedWords : 'дохляк',
+                temperature: r.temperature !== undefined ? r.temperature : 0.9,
+                messages: Array.isArray(r.messages) ? r.messages : [],
+                deletedAt: r.deletedAt || null,
+                archiveReason: r.archiveReason || null
+            };
+        }
+
+        function loadRoomsData() {
+            const saved = localStorage.getItem('rp_rooms');
+            if (saved) {
+                try { 
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed)) {
+                        rooms = parsed.map(normalizeRoomObject);
+                    }
+                } catch(e) { 
+                    console.error("Ошибка чтения rp_rooms:", e);
+                    rooms = []; 
+                }
+            }
+
+            const savedDeleted = localStorage.getItem('rp_deleted_rooms');
+            if (savedDeleted) {
+                try {
+                    const parsedDeleted = JSON.parse(savedDeleted);
+                    if (Array.isArray(parsedDeleted)) {
+                        deletedRooms = parsedDeleted.map(normalizeRoomObject);
+                    }
+                } catch(e) {
+                    console.error("Ошибка чтения rp_deleted_rooms:", e);
+                    deletedRooms = [];
+                }
+            }
+
+            if (!rooms || rooms.length === 0) {
+                rooms.push(createDefaultRoomObject());
+                saveRoomsToStorage();
+            }
+
+            const savedActiveId = localStorage.getItem('rp_active_room_id');
+            if (savedActiveId && rooms.some(r => r.id === savedActiveId)) {
+                activeRoomId = savedActiveId;
+            } else {
+                activeRoomId = rooms[0].id;
+            }
+
+            updateDeletedCountBadge();
+            renderRoomsList();
+            renderActiveRoom();
+        }
+
+        function createDefaultRoomObject() {
+            return {
+                id: 'room_' + Date.now(),
+                name: 'Забытая станция',
+                systemPrompt: 'Ты выступаешь в роли ведущего атмосферной ролевой игры. Общайся живо, естественно и без лишней воды.',
+                memoryFacts: '- Действие происходит на орбитальной станции.\n- Персонаж игрока — инженер-исследователь.',
+                responseLength: 'short',
+                characterMood: 'Спокойное, заинтересованное',
+                bannedWords: 'дохляк',
+                temperature: 0.9,
+                messages: [
+                    {
+                        id: 'msg_' + Date.now(),
+                        role: 'model',
+                        text: 'Шум вентиляторов гулко отдается в пустом коридоре. Лампы аварийного освещения мигают тусклым красным светом. Что ты будешь делать дальше?',
+                        timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                    }
+                ]
+            };
+        }
+
+        function saveRoomsToStorage() {
+            try {
+                localStorage.setItem('rp_rooms', JSON.stringify(rooms));
+                localStorage.setItem('rp_deleted_rooms', JSON.stringify(deletedRooms));
+                if (activeRoomId) {
+                    localStorage.setItem('rp_active_room_id', activeRoomId);
+                }
+                updateDeletedCountBadge();
+            } catch (e) {
+                console.error("Ошибка сохранения данных в localStorage:", e);
+            }
+        }
+
+        function updateDeletedCountBadge() {
+            const badge = document.getElementById('deletedCountBadge');
+            if (badge) {
+                badge.innerText = deletedRooms.length;
+            }
+        }
+
+        function getActiveRoom() {
+            return rooms.find(r => r.id === activeRoomId);
+        }
+
+        function createNewRoom() {
+            const newRoom = {
+                id: 'room_' + Date.now(),
+                name: 'Новая сюжетная комната ' + (rooms.length + 1),
+                systemPrompt: 'Опишите сюжет и роль AI для этой ролки...',
+                memoryFacts: '',
+                responseLength: 'short',
+                characterMood: '',
+                bannedWords: 'дохляк',
+                temperature: 0.9,
+                messages: []
+            };
+            rooms.unshift(newRoom);
+            activeRoomId = newRoom.id;
+            saveRoomsToStorage();
+            renderRoomsList();
+            renderActiveRoom();
+        }
+
+        // Move a room to the protected Deleted Chats Library
+        function archiveRoom(id, event) {
+            if (event) event.stopPropagation();
+            if (isGenerating) return;
+
+            const roomIndex = rooms.findIndex(r => r.id === id);
+            if (roomIndex === -1) return;
+
+            const roomToArchive = { ...rooms[roomIndex] };
+            roomToArchive.deletedAt = new Date().toLocaleString('ru-RU', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+            roomToArchive.archiveReason = 'Удалено из списка';
+
+            deletedRooms.unshift(roomToArchive);
+            rooms.splice(roomIndex, 1);
+
+            // Ensure at least one active room exists
+            if (rooms.length === 0) {
+                const fallbackRoom = {
+                    id: 'room_' + Date.now(),
+                    name: 'Новая сюжетная комната 1',
+                    systemPrompt: 'Опишите сюжет и роль AI для этой ролки...',
+                    memoryFacts: '',
+                    responseLength: 'short',
+                    characterMood: '',
+                    bannedWords: 'дохляк',
+                    temperature: 0.9,
+                    messages: []
+                };
+                rooms.push(fallbackRoom);
+            }
+
+            if (!rooms.some(r => r.id === activeRoomId)) {
+                activeRoomId = rooms[0].id;
+            }
+
+            saveRoomsToStorage();
+            renderRoomsList();
+            renderActiveRoom();
+        }
+
+        // Restore a room from Deleted Chats Library back into active list
+        function restoreDeletedRoom(deletedIndex) {
+            if (deletedIndex < 0 || deletedIndex >= deletedRooms.length) return;
+
+            const restored = { ...deletedRooms[deletedIndex] };
+            deletedRooms.splice(deletedIndex, 1);
+
+            // Assign a fresh unique ID to avoid collisions if it was a backup copy
+            restored.id = 'room_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+            delete restored.deletedAt;
+            delete restored.archiveReason;
+
+            rooms.unshift(restored);
+            activeRoomId = restored.id;
+
+            saveRoomsToStorage();
+            renderRoomsList();
+            renderActiveRoom();
+            renderDeletedRoomsList();
+            closeModal('deletedLibraryModal');
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+        }
+
+        function requestDeletedLibraryAccess() {
+            document.getElementById('libraryPasswordInput').value = '';
+            document.getElementById('libraryPasswordError').classList.add('hidden');
+            openModal('libraryPasswordModal');
+            setTimeout(() => {
+                document.getElementById('libraryPasswordInput').focus();
+            }, 100);
+        }
+
+        function verifyLibraryPassword(e) {
+            e.preventDefault();
+            const input = document.getElementById('libraryPasswordInput').value;
+            const errorEl = document.getElementById('libraryPasswordError');
+
+            if (input === CORRECT_PASSWORD) {
+                errorEl.classList.add('hidden');
+                closeModal('libraryPasswordModal');
+                renderDeletedRoomsList();
+                openModal('deletedLibraryModal');
+            } else {
+                errorEl.classList.remove('hidden');
+            }
+        }
+
+        function renderDeletedRoomsList() {
+            const container = document.getElementById('deletedRoomsList');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (deletedRooms.length === 0) {
+                container.innerHTML = `
+                    <div class="py-12 text-center text-mono-500 space-y-2">
+                        <i class="fa-solid fa-box-open text-4xl text-mono-700"></i>
+                        <p class="text-sm font-medium text-mono-300">Библиотека удаленных чатов пуста</p>
+                        <p class="text-xs text-mono-500">Здесь будут появляться удаленные ролки и резервные копии очищенных диалогов.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            deletedRooms.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = 'p-4 bg-mono-850 border border-mono-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+
+                const lastPreview = item.messages && item.messages.length > 0
+                    ? item.messages[item.messages.length - 1].text.slice(0, 90) + (item.messages[item.messages.length - 1].text.length > 90 ? '...' : '')
+                    : 'Нет сообщений';
+
+                card.innerHTML = `
+                    <div class="min-w-0 flex-1 space-y-1">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="font-semibold text-mono-100 text-sm sm:text-base truncate">${escapeHtml(item.name)}</span>
+                            <span class="px-2 py-0.5 text-[11px] rounded-md bg-mono-800 text-mono-300 border border-mono-700/60">
+                                ${item.messages.length} сообщ.
+                            </span>
+                        </div>
+                        <div class="text-xs text-mono-400 flex items-center gap-2 flex-wrap">
+                            <span><i class="fa-regular fa-clock mr-1"></i>${escapeHtml(item.deletedAt || 'Недавно')}</span>
+                            ${item.archiveReason ? `<span class="text-mono-500">• ${escapeHtml(item.archiveReason)}</span>` : ''}
+                        </div>
+                        <p class="text-xs text-mono-500 truncate pt-0.5 italic">«${escapeHtml(lastPreview)}»</p>
+                    </div>
+                    <button onclick="restoreDeletedRoom(${index})" 
+                            class="px-4 py-2.5 bg-mono-700 hover:bg-mono-600 active:bg-mono-800 text-mono-100 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition flex-shrink-0">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        <span>Восстановить</span>
+                    </button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function selectRoom(id) {
+            if (isGenerating) return;
+            activeRoomId = id;
+            saveRoomsToStorage();
+            renderRoomsList();
+            renderActiveRoom();
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+        }
+
+        // -------------------------------------------------------------
+        // UI RENDERING
+        // -------------------------------------------------------------
+        function renderRoomsList() {
+            const container = document.getElementById('roomsList');
+            container.innerHTML = '';
+
+            rooms.forEach(room => {
+                const isActive = room.id === activeRoomId;
+                const div = document.createElement('div');
+                div.className = `group flex items-center justify-between p-3.5 rounded-2xl cursor-pointer transition ${
+                    isActive ? 'bg-mono-800 text-mono-100 border border-mono-700/60 font-semibold' : 'text-mono-400 hover:bg-mono-850 hover:text-mono-200'
+                }`;
+                div.onclick = () => selectRoom(room.id);
+
+                div.innerHTML = `
+                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                        <i class="fa-solid fa-feather text-sm ${isActive ? 'text-mono-200' : 'text-mono-600'}"></i>
+                        <span class="text-sm truncate">${escapeHtml(room.name)}</span>
+                    </div>
+                    <button onclick="archiveRoom('${room.id}', event)" title="Перенести в библиотеку удаленных чатов" 
+                            class="opacity-85 md:opacity-0 group-hover:opacity-100 text-mono-500 hover:text-amber-400 p-2 transition">
+                        <i class="fa-solid fa-box-archive text-sm"></i>
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderActiveRoom() {
+            const room = getActiveRoom();
+            if (!room) return;
+
+            document.getElementById('currentRoomTitle').innerText = room.name;
+            document.getElementById('currentRoomSubtitle').innerText = `${room.messages.length} сообщений в истории`;
+
+            const container = document.getElementById('messagesContainer');
+            container.innerHTML = '';
+
+            if (room.messages.length === 0) {
+                container.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-center p-6 text-mono-500">
+                        <i class="fa-solid fa-scroll text-5xl mb-3 text-mono-800"></i>
+                        <p class="text-base font-semibold text-mono-300">История пуста</p>
+                        <p class="text-xs sm:text-sm max-w-xs mt-1 text-mono-500">Настройте сюжет во вкладке «Сюжет & Память» или отправьте первый ход.</p>
+                    </div>
+                `;
+            } else {
+                room.messages.forEach(msg => {
+                    appendMessageUI(msg);
+                });
+            }
+
+            scrollToBottom();
+        }
+
+        function appendMessageUI(msg) {
+            const container = document.getElementById('messagesContainer');
+            const isUser = msg.role === 'user';
+
+            const wrapper = document.createElement('div');
+            wrapper.setAttribute('data-msg-id', msg.id);
+            wrapper.className = `flex gap-2.5 sm:gap-3 max-w-3xl ${isUser ? 'ml-auto flex-row-reverse' : 'mr-auto'} fade-enter-active group`;
+
+            const avatar = document.createElement('div');
+            avatar.className = `w-9 h-9 rounded-2xl flex items-center justify-center text-sm flex-shrink-0 mt-0.5 ${
+                isUser ? 'bg-mono-700 text-mono-100' : 'bg-mono-850 text-mono-300 border border-mono-700'
+            }`;
+            avatar.innerHTML = isUser ? '<i class="fa-solid fa-user"></i>' : '<i class="fa-solid fa-robot"></i>';
+
+            const content = document.createElement('div');
+            content.className = `flex flex-col space-y-1.5 max-w-[88%] sm:max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`;
+
+            const bubble = document.createElement('div');
+            bubble.className = `p-4 rounded-2xl text-sm sm:text-base leading-relaxed whitespace-pre-wrap select-text border shadow-sm ${
+                isUser 
+                    ? 'bg-mono-800 text-mono-100 rounded-tr-none border-mono-700/60' 
+                    : 'bg-mono-900 text-mono-200 rounded-tl-none border-mono-800'
+            }`;
+            bubble.innerText = msg.text;
+
+            // Action Toolbar (Edit / New / Shorten / Lengthen)
+            const actions = document.createElement('div');
+            actions.className = `flex flex-wrap items-center gap-1.5 text-xs text-mono-400 ${isUser ? 'flex-row-reverse' : ''}`;
+
+            const time = document.createElement('span');
+            time.className = 'text-[11px] text-mono-600 px-1';
+            time.innerText = msg.timestamp || new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            actions.appendChild(time);
+
+            // Edit button for ALL messages (allows rewriting both user & bot messages)
+            const editBtn = document.createElement('button');
+            editBtn.className = 'px-2 py-0.5 bg-mono-850 hover:bg-mono-800 text-mono-300 hover:text-mono-100 rounded-lg border border-mono-700/60 text-[11px] font-medium transition active:scale-95 flex items-center gap-1';
+            editBtn.title = isUser ? 'Изменить свой текст' : 'Написать ответ за бота вручную';
+            editBtn.innerHTML = '<i class="fa-solid fa-pen"></i> Изменить';
+            editBtn.onclick = () => editMessageInline(msg.id);
+            actions.appendChild(editBtn);
+
+            // AI specific buttons (New response / Shorter / Longer)
+            if (!isUser) {
+                const regenBtn = document.createElement('button');
+                regenBtn.className = 'px-2 py-0.5 bg-mono-850 hover:bg-mono-800 text-mono-300 hover:text-mono-100 rounded-lg border border-mono-700/60 text-[11px] font-medium transition active:scale-95 flex items-center gap-1';
+                regenBtn.title = 'Сгенерировать полностью новый ответ';
+                regenBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Новое';
+                regenBtn.onclick = () => regenerateNewResponse(msg.id);
+                actions.appendChild(regenBtn);
+
+                const shorterBtn = document.createElement('button');
+                shorterBtn.className = 'px-2 py-0.5 bg-mono-850 hover:bg-mono-800 text-mono-300 hover:text-mono-100 rounded-lg border border-mono-700/60 text-[11px] font-medium transition active:scale-95 flex items-center gap-1';
+                shorterBtn.innerHTML = '<i class="fa-solid fa-compress"></i> Короче';
+                shorterBtn.onclick = () => regenerateWithModifier(msg.id, 'shorter');
+                actions.appendChild(shorterBtn);
+
+                const longerBtn = document.createElement('button');
+                longerBtn.className = 'px-2 py-0.5 bg-mono-850 hover:bg-mono-800 text-mono-300 hover:text-mono-100 rounded-lg border border-mono-700/60 text-[11px] font-medium transition active:scale-95 flex items-center gap-1';
+                longerBtn.innerHTML = '<i class="fa-solid fa-expand"></i> Длиннее';
+                longerBtn.onclick = () => regenerateWithModifier(msg.id, 'longer');
+                actions.appendChild(longerBtn);
+            }
+
+            content.appendChild(bubble);
+            content.appendChild(actions);
+
+            wrapper.appendChild(avatar);
+            wrapper.appendChild(content);
+
+            container.appendChild(wrapper);
+            scrollToBottom();
+        }
+
+        // Inline Text Editing
+        function editMessageInline(msgId) {
+            if (isGenerating) return;
+            const room = getActiveRoom();
+            if (!room) return;
+            const msg = room.messages.find(m => m.id === msgId);
+            if (!msg) return;
+
+            const wrapper = document.querySelector(`[data-msg-id="${msgId}"]`);
+            if (!wrapper) return;
+
+            const bubble = wrapper.querySelector('.whitespace-pre-wrap');
+            if (!bubble) return;
+            const currentText = msg.text;
+
+            const editContainer = document.createElement('div');
+            editContainer.className = 'w-full min-w-[260px] sm:min-w-[360px] space-y-2 mt-1';
+            editContainer.innerHTML = `
+                <textarea rows="4" class="w-full p-3 bg-mono-850 border border-mono-500 rounded-xl text-mono-100 text-base focus:outline-none resize-y font-sans select-text">${escapeHtml(currentText)}</textarea>
+                <div class="flex justify-end gap-2">
+                    <button onclick="cancelInlineEdit('${msgId}')" class="px-3 py-2 bg-mono-800 hover:bg-mono-700 text-mono-300 rounded-lg text-xs font-medium">Отмена</button>
+                    <button onclick="saveInlineEdit('${msgId}')" class="px-3 py-2 bg-mono-600 hover:bg-mono-500 text-mono-100 rounded-lg text-xs font-medium">Сохранить текст</button>
+                </div>
+            `;
+
+            bubble.replaceWith(editContainer);
+            const ta = editContainer.querySelector('textarea');
+            if (ta) {
+                ta.focus();
+                ta.setSelectionRange(ta.value.length, ta.value.length);
+            }
+        }
+
+        function cancelInlineEdit(msgId) {
+            renderActiveRoom();
+        }
+
+        function saveInlineEdit(msgId) {
+            const room = getActiveRoom();
+            if (!room) return;
+            const msg = room.messages.find(m => m.id === msgId);
+            if (!msg) return;
+
+            const wrapper = document.querySelector(`[data-msg-id="${msgId}"]`);
+            if (!wrapper) return;
+            const textarea = wrapper.querySelector('textarea');
+            if (textarea) {
+                const updatedText = textarea.value.trim();
+                if (updatedText !== '') {
+                    msg.text = updatedText;
+                    saveRoomsToStorage();
+                }
+            }
+            renderActiveRoom();
+        }
+
+        // Completely regenerate a fresh response with higher creativity
+        async function regenerateNewResponse(msgId) {
+            if (isGenerating) return;
+            const room = getActiveRoom();
+            if (!room) return;
+
+            const msgIndex = room.messages.findIndex(m => m.id === msgId);
+            if (msgIndex === -1) return;
+
+            const previousText = room.messages[msgIndex].text;
+            const modifierPrompt = `[Системное указание: Придумай АБСОЛЮТНО НОВЫЙ, свежий и другой вариант развития сцены на последнее сообщение игрока. Категорически запрещено повторять предыдущий вариант ответа («${previousText.slice(0, 120)}...»). Предложи другую реакцию или действие, строго соблюдая заданное настроение персонажа.]`;
+
+            room.messages = room.messages.slice(0, msgIndex);
+            saveRoomsToStorage();
+            renderActiveRoom();
+
+            await executeRegeneration(room, modifierPrompt, true);
+        }
+
+        // Regenerate message shorter or longer
+        async function regenerateWithModifier(msgId, mode) {
+            if (isGenerating) return;
+            const room = getActiveRoom();
+            if (!room) return;
+
+            const msgIndex = room.messages.findIndex(m => m.id === msgId);
+            if (msgIndex === -1) return;
+
+            let modifierPrompt = "";
+            if (mode === 'shorter') {
+                modifierPrompt = "[Системное указание: Напиши ответ намного СЖАТО и КОРОЧЕ (буквально 1-2 коротких предложения), без лишних описаний и воды.]";
+            } else if (mode === 'longer') {
+                modifierPrompt = "[Системное указание: Напиши ответ намного ДЕТАЛЬНЕЕ и ДЛИННЕЕ, добавив больше описаний, эмоций и художественности.]";
+            }
+
+            room.messages = room.messages.slice(0, msgIndex);
+            saveRoomsToStorage();
+            renderActiveRoom();
+
+            await executeRegeneration(room, modifierPrompt, false);
+        }
+
+        async function executeRegeneration(room, modifierPrompt, boostVariation = false) {
+            isGenerating = true;
+            setSendButtonLoading(true);
+            showTypingIndicator();
+
+            try {
+                const aiResponse = await callGeminiAPI(room, modifierPrompt, boostVariation);
+                removeTypingIndicator();
+
+                const aiTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const newMsg = { id: 'msg_' + Date.now(), role: 'model', text: aiResponse, timestamp: aiTime };
+                room.messages.push(newMsg);
+                saveRoomsToStorage();
+                renderActiveRoom();
+            } catch (err) {
+                removeTypingIndicator();
+                console.error(err);
+                const errorMsg = `[ Ошибка генерации ]: ${err.message || "Не удалось перегенерировать ответ"}`;
+                appendMessageUI({ id: 'msg_' + Date.now(), role: 'model', text: errorMsg, timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
+            } finally {
+                isGenerating = false;
+                setSendButtonLoading(false);
+            }
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('messagesContainer');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function autoResizeTextarea(el) {
+            el.style.height = 'auto';
+            el.style.height = (el.scrollHeight) + 'px';
+        }
+
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // -------------------------------------------------------------
+        // CHAT & GEMINI API INTERACTION
+        // -------------------------------------------------------------
+        function setSendButtonLoading(loading) {
+            const btn = document.getElementById('sendBtn');
+            if (!btn) return;
+            btn.disabled = loading;
+            btn.innerHTML = loading 
+                ? '<i class="fa-solid fa-spinner fa-spin text-sm"></i>' 
+                : '<i class="fa-solid fa-paper-plane text-sm"></i>';
+        }
+
+        async function sendMessage() {
+            if (isGenerating) return;
+            const inputEl = document.getElementById('userInput');
+            const text = inputEl.value.trim();
+            if (!text) return;
+
+            const room = getActiveRoom();
+            if (!room) return;
+
+            inputEl.value = '';
+            inputEl.style.height = 'auto';
+
+            const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            const userMsg = { id: 'msg_' + Date.now(), role: 'user', text, timestamp };
+            room.messages.push(userMsg);
+            saveRoomsToStorage();
+            
+            if (room.messages.length === 1) {
+                renderActiveRoom();
+            } else {
+                appendMessageUI(userMsg);
+                document.getElementById('currentRoomSubtitle').innerText = `${room.messages.length} сообщений в истории`;
+            }
+
+            isGenerating = true;
+            setSendButtonLoading(true);
+            showTypingIndicator();
+
+            try {
+                const aiResponse = await callGeminiAPI(room);
+                removeTypingIndicator();
+
+                const aiTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const aiMsg = { id: 'msg_' + Date.now(), role: 'model', text: aiResponse, timestamp: aiTime };
+                room.messages.push(aiMsg);
+                saveRoomsToStorage();
+                appendMessageUI(aiMsg);
+                document.getElementById('currentRoomSubtitle').innerText = `${room.messages.length} сообщений в истории`;
+
+            } catch (err) {
+                removeTypingIndicator();
+                console.error(err);
+                const errorMsg = `[ Ошибка генерации ]: ${err.message || "Не удалось получить ответ"}`;
+                appendMessageUI({ id: 'msg_' + Date.now(), role: 'model', text: errorMsg, timestamp });
+            } finally {
+                isGenerating = false;
+                setSendButtonLoading(false);
+            }
+        }
+
+        async function callGeminiAPI(room, extraInstruction = "", boostVariation = false) {
+            const keyToUse = apiKey.trim();
+            if (!keyToUse) {
+                throw new Error("Не указан Gemini API ключ! Откройте боковое меню слева → нажмите «Gemini API Ключ» → вставьте ваш ключ из Google AI Studio и нажмите «Сохранить».");
+            }
+
+            let systemInstructionText = room.systemPrompt || "Ты партнер по ролевой игре.";
+
+            // 1. Strict Response Length Rules
+            const lenMode = room.responseLength || 'short';
+            if (lenMode === 'short') {
+                systemInstructionText += "\n\nПРАВИЛО ДЛИНЫ СООБЩЕНИЙ: Пиши КОРОТКИЕ, живые и динамичные ответы (строго 1–3 предложения). КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО писать длинные сочинения, поэмы и огромные абзацы. Отвечай лаконично, как в реальном диалоге или быстрой ролевой.";
+            } else if (lenMode === 'medium') {
+                systemInstructionText += "\n\nПРАВИЛО ДЛИНЫ СООБЩЕНИЙ: Пиши ответы средней длины (1–2 небольших абзаца, 3–5 предложений). Соблюдай баланс между действиями и репликами, не пиши длинных сочинений.";
+            } else if (lenMode === 'long') {
+                systemInstructionText += "\n\nПРАВИЛО ДЛИНЫ СООБЩЕНИЙ: Пиши развернутые, подробные и художественные ответы (2–4 абзаца) с детальным описанием окружения, действий и мыслей.";
+            }
+
+            // 2. Persistent Character Mood Enforcement
+            if (room.characterMood && room.characterMood.trim() !== '') {
+                systemInstructionText += `\n\nЖЕЛЕЗНОЕ ПРАВИЛО НАСТРОЕНИЯ ПЕРСОНАЖА: Прямо сейчас у твоего персонажа следующее настроение/состояние: «${room.characterMood.trim()}». Ты ОБЯЗАН строго придерживаться именно этого настроения, тона и эмоций в каждом своем ответе. Не меняй настроение на противоположное (например, не срывайся в грубость или уныние, если указано хорошее настроение), пока это правило не будет изменено.`;
+            }
+
+            // 3. Anti-Repetition & Banned Words
+            const bannedList = (room.bannedWords !== undefined ? room.bannedWords : 'дохляк').trim();
+            systemInstructionText += "\n\nАНТИ-ПОВТОРЫ И СЛОВАРНЫЙ ЗАПАС: Не используй одни и те же обращения, обзывания, клише и слова-паразиты из сообщения в сообщение. Разнообразь речь.";
+            if (bannedList !== '') {
+                systemInstructionText += ` СТРОГО ЗАПРЕЩЕННЫЕ СЛОВА (никогда не используй эти слова и их производные): ${bannedList}.`;
+            }
+
+            // 4. Long-term Memory
+            if (room.memoryFacts && room.memoryFacts.trim() !== '') {
+                systemInstructionText += "\n\nКРИТИЧЕСКИ ВАЖНАЯ ДОЛГОСРОЧНАЯ ПАМЯТЬ И ФАКТЫ МИРА:\n" + room.memoryFacts;
+            }
+
+            if (extraInstruction) {
+                systemInstructionText += "\n\n" + extraInstruction;
+            }
+
+            const contents = room.messages.map(m => ({
+                role: m.role === 'user' ? 'user' : 'model',
+                parts: [{ text: m.text }]
+            }));
+
+            if (contents.length === 0) {
+                contents.push({
+                    role: 'user',
+                    parts: [{ text: 'Начни сцену с самого начала по заданному сюжету.' }]
+                });
+            }
+
+            let temp = parseFloat(room.temperature) || 0.9;
+            if (boostVariation) {
+                temp = Math.min(1.5, temp + 0.25);
+            }
+
+            const payload = {
+                contents: contents,
+                systemInstruction: {
+                    parts: [{ text: systemInstructionText }]
+                },
+                generationConfig: {
+                    temperature: temp,
+                }
+            };
+
+            // Unfiltered safety settings for all 5 categories if toggled ON
+            if (disableSafety) {
+                payload.safetySettings = [
+                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_CIVIC_INTEGRITY", threshold: "BLOCK_NONE" }
+                ];
+            }
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${encodeURIComponent(keyToUse)}`;
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.error?.message || `Ошибка сервера API (${response.status})`);
+            }
+
+            const data = await response.json();
+            const candidate = data.candidates?.[0];
+            if (candidate && candidate.content?.parts?.[0]?.text) {
+                return candidate.content.parts[0].text;
+            } else if (candidate && candidate.finishReason === 'SAFETY') {
+                throw new Error("Ответ заблокирован фильтрами безопасности Gemini (finishReason: SAFETY). Убедитесь, что в настройках API ключа включено «Снять фильтры безопасности».");
+            } else if (candidate && candidate.finishReason) {
+                throw new Error(`Генерация остановлена сервером (причина: ${candidate.finishReason}). Попробуйте нажать «Новое».`);
+            } else {
+                throw new Error("Получен пустой ответ от модели. Попробуйте нажать «Новое» еще раз.");
+            }
+        }
+
+        function showTypingIndicator() {
+            const container = document.getElementById('messagesContainer');
+            const div = document.createElement('div');
+            div.id = 'typingIndicator';
+            div.className = 'flex gap-3 max-w-3xl mr-auto fade-enter-active';
+            div.innerHTML = `
+                <div class="w-9 h-9 rounded-2xl bg-mono-850 border border-mono-700 flex items-center justify-center text-sm text-mono-300">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div class="p-4 bg-mono-900 border border-mono-800 rounded-2xl rounded-tl-none flex items-center gap-1.5">
+                    <span class="w-2 h-2 bg-mono-400 rounded-full animate-bounce"></span>
+                    <span class="w-2 h-2 bg-mono-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+                    <span class="w-2 h-2 bg-mono-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></span>
+                </div>
+            `;
+            container.appendChild(div);
+            scrollToBottom();
+        }
+
+        function removeTypingIndicator() {
+            const el = document.getElementById('typingIndicator');
+            if (el) el.remove();
+        }
+
+        function confirmClearChatHistory() {
+            const room = getActiveRoom();
+            if (!room) return;
+
+            // Backup non-empty chat history to Deleted Chats Library before clearing
+            if (room.messages && room.messages.length > 0) {
+                const backupCopy = JSON.parse(JSON.stringify(room));
+                backupCopy.id = 'backup_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                backupCopy.deletedAt = new Date().toLocaleString('ru-RU', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+                backupCopy.archiveReason = 'Резервная копия перед очисткой';
+                deletedRooms.unshift(backupCopy);
+            }
+
+            room.messages = [];
+            saveRoomsToStorage();
+            renderActiveRoom();
+            closeModal('clearHistoryModal');
+        }
+
+        // -------------------------------------------------------------
+        // MODALS & PRESETS CONTROL
+        // -------------------------------------------------------------
+        function selectLengthPreset(preset) {
+            document.getElementById('roomResponseLength').value = preset;
+            ['short', 'medium', 'long'].forEach(key => {
+                const btn = document.getElementById('lenBtn_' + key);
+                if (!btn) return;
+                if (key === preset) {
+                    btn.className = 'py-2.5 px-3 rounded-xl border border-mono-400 bg-mono-700 text-mono-100 text-xs sm:text-sm font-semibold transition text-center shadow';
+                } else {
+                    btn.className = 'py-2.5 px-3 rounded-xl border border-mono-700 bg-mono-850 text-mono-400 hover:text-mono-200 text-xs sm:text-sm font-medium transition text-center';
+                }
+            });
+        }
+
+        function openModal(id) {
+            if (id === 'contextModal') {
+                const room = getActiveRoom();
+                if (room) {
+                    document.getElementById('roomSystemPrompt').value = room.systemPrompt || '';
+                    document.getElementById('roomMemoryFacts').value = room.memoryFacts || '';
+                    document.getElementById('roomCharacterMood').value = room.characterMood || '';
+                    document.getElementById('roomBannedWords').value = room.bannedWords !== undefined ? room.bannedWords : 'дохляк';
+                    document.getElementById('roomTemperature').value = room.temperature || 0.9;
+                    document.getElementById('tempValue').innerText = room.temperature || 0.9;
+                    selectLengthPreset(room.responseLength || 'short');
+                }
+            } else if (id === 'apiSettingsModal') {
+                document.getElementById('apiKeyInput').value = apiKey;
+                document.getElementById('apiModelSelect').value = selectedModel;
+                document.getElementById('disableSafetyToggle').checked = disableSafety;
+            } else if (id === 'editRoomModal') {
+                const room = getActiveRoom();
+                if (room) {
+                    document.getElementById('editRoomNameInput').value = room.name;
+                }
+            }
+
+            const modal = document.getElementById(id);
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function saveRoomContext() {
+            const room = getActiveRoom();
+            if (!room) return;
+
+            room.systemPrompt = document.getElementById('roomSystemPrompt').value;
+            room.memoryFacts = document.getElementById('roomMemoryFacts').value;
+            room.responseLength = document.getElementById('roomResponseLength').value || 'short';
+            room.characterMood = document.getElementById('roomCharacterMood').value;
+            room.bannedWords = document.getElementById('roomBannedWords').value;
+            room.temperature = document.getElementById('roomTemperature').value;
+
+            saveRoomsToStorage();
+            closeModal('contextModal');
+        }
+
+        function saveRoomName() {
+            const rootRoom = getActiveRoom();
+            const newName = document.getElementById('editRoomNameInput').value.trim();
+            if (rootRoom && newName) {
+                rootRoom.name = newName;
+                saveRoomsToStorage();
+                renderRoomsList();
+                renderActiveRoom();
+                closeModal('editRoomModal');
+            }
+        }
+
+        function saveApiKey() {
+            apiKey = document.getElementById('apiKeyInput').value.trim();
+            selectedModel = document.getElementById('apiModelSelect').value;
+            disableSafety = document.getElementById('disableSafetyToggle').checked;
+            
+            localStorage.setItem('gemini_api_key', apiKey);
+            localStorage.setItem('gemini_api_model', selectedModel);
+            localStorage.setItem('gemini_disable_safety', disableSafety ? 'true' : 'false');
+
+            updateApiStatusBadge();
+            closeModal('apiSettingsModal');
+        }
+
+        function updateApiStatusBadge() {
+            const badge = document.getElementById('apiStatusBadge');
+            if (apiKey) {
+                badge.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+            } else {
+                badge.className = 'w-2.5 h-2.5 rounded-full bg-amber-500';
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
